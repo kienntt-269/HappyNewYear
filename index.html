@@ -450,17 +450,14 @@
 				const isLandscape = window.innerWidth > window.innerHeight;
 
 				if (isMobile && !isLandscape) {
-					// 📱 Mobile xoay dọc
 					isLandscapeAllowed = false;
 					notice.style.display = "flex";
 					canvas.style.display = "none";
 					document.getElementById("startOverlay").style.display = "none";
 				} else {
-					// ✅ Xoay ngang hoặc PC
 					isLandscapeAllowed = true;
 					notice.style.display = "none";
 					canvas.style.display = "block";
-
 					if (!hasStarted) {
 						document.getElementById("startOverlay").style.display = "flex";
 					}
@@ -469,31 +466,23 @@
 
 			document.addEventListener("click", () => {
 				if (!isLandscapeAllowed || hasStarted) return;
-
 				hasStarted = true;
-
-				// 🎵 Play nhạc
 				const music = document.getElementById("bgMusic");
 				music.volume = 0.7;
 				music.play().catch(() => {});
-
-				// Ẩn overlay
 				document.getElementById("startOverlay").style.display = "none";
-
-				// ▶️ Bắt đầu animation
 				nextText();
 				animate();
 			}, { once: true });
 
 			const texts = [
-				"3",
-				"2",
-				"1",
-				"Chúc em một năm mới thật nhiều niềm vui",
-				"Mong em luôn mạnh khỏe và bình an",
-				"Vui vẻ và hành phúc",
-				"Gặp nhiều may mắn trong cuộc sống",
-				"Happy new year 🎉",
+				"3", "2", "1",
+				"Chúc em năm mới",
+				"Thật nhiều niềm vui",
+				"Luôn mạnh khỏe",
+				"Bình an và Hạnh phúc",
+				"Gặp nhiều may mắn",
+				"Happy New Year 🎉",
 			];
 
 			let textIndex = 0;
@@ -505,13 +494,19 @@
 					this.y = Math.random() * canvas.height;
 					this.destX = x;
 					this.destY = y;
-					this.size = 2.8;
+					// Kích thước hạt ngẫu nhiên để trông tự nhiên hơn
+					this.size = (Math.random() * 1.5) + 1.5; 
 					this.color = "#ffffff";
+					this.vx = (Math.random() - 0.5) * 2;
+					this.vy = (Math.random() - 0.5) * 2;
+					this.friction = 0.9;
+					this.ease = 0.15; // Tốc độ tụ lại nhanh hơn chút
 				}
 
 				update() {
-					this.x += (this.destX - this.x) * 0.1;
-					this.y += (this.destY - this.y) * 0.1;
+					// Hiệu ứng di chuyển mượt mà về vị trí gốc
+					this.x += (this.destX - this.x) * this.ease;
+					this.y += (this.destY - this.y) * this.ease;
 				}
 
 				draw() {
@@ -522,8 +517,8 @@
 				}
 			}
 
-			// ✨ TỰ ĐỘNG XUỐNG DÒNG + CĂN GIỮA
 			function wrapText(text, maxWidth) {
+				// Tách từ thông minh hơn để tránh ngắt từ xấu
 				const words = text.split(" ");
 				let lines = [];
 				let line = "";
@@ -546,28 +541,39 @@
 				particles = [];
 				ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-				const fontSize = canvas.width < 700 ? 45 : 90;
-				ctx.font = `900 ${fontSize}px Arial`;
+				// 1. CẤU HÌNH FONT ĐỂ DỄ NHÌN HƠN
+				const isMobile = canvas.width < 768;
+				// Tăng cỡ chữ mobile lên 60 (cũ 45) để rõ hơn
+				const fontSize = isMobile ? 60 : 100; 
+				// Dùng font Arial Black hoặc Verdana (dày) thay vì Arial thường
+				ctx.font = `900 ${fontSize}px "Arial Black", "Verdana", sans-serif`; 
 				ctx.fillStyle = "#fff";
 				ctx.textAlign = "center";
 				ctx.textBaseline = "middle";
 
-				const maxTextWidth = canvas.width * 0.9;
+				const maxTextWidth = canvas.width * 0.8;
 				const lines = wrapText(text, maxTextWidth);
 				const lineHeight = fontSize * 1.2;
-				const startY = canvas.height / 2 - (lines.length - 1) * lineHeight / 2;
+				const startY = (canvas.height - lines.length * lineHeight) / 2 + lineHeight / 2;
 
 				lines.forEach((line, i) => {
 					ctx.fillText(line, canvas.width / 2, startY + i * lineHeight);
 				});
 
+				// Lấy dữ liệu pixel
 				const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 				ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-				for (let y = 0; y < canvas.height; y += 6) {
-					for (let x = 0; x < canvas.width; x += 6) {
+				// 2. GIẢM BƯỚC NHẢY (GAP) ĐỂ TĂNG MẬT ĐỘ HẠT
+				// Mobile: bước nhảy 4 (để đỡ lag), PC: bước nhảy 3 (cho đẹp)
+				// Code cũ là 6 -> quá thưa
+				const gap = isMobile ? 6 : 4; 
+
+				for (let y = 0; y < canvas.height; y += gap) {
+					for (let x = 0; x < canvas.width; x += gap) {
+						// Kiểm tra kênh Alpha (độ trong suốt)
 						const index = (y * canvas.width + x) * 4;
-						if (imageData.data[index + 3] > 150) {
+						if (imageData.data[index + 3] > 128) {
 							particles.push(new Particle(x, y));
 						}
 					}
@@ -576,18 +582,21 @@
 
 			function animate() {
 				ctx.clearRect(0, 0, canvas.width, canvas.height);
-				particles.forEach(p => {
-					p.update();
-					p.draw();
-				});
+				for (let i = 0; i < particles.length; i++) {
+					particles[i].update();
+					particles[i].draw();
+				}
 				requestAnimationFrame(animate);
 			}
 
 			function nextText() {
-				createTextParticles(texts[textIndex]);
-				textIndex++;
 				if (textIndex < texts.length) {
-					setTimeout(nextText, 3500);
+					createTextParticles(texts[textIndex]);
+					textIndex++;
+					setTimeout(nextText, 3500); // Thời gian chuyển chữ
+				} else {
+					// Khi hết chữ thì lặp lại hoặc xóa đi (tùy chọn)
+					// textIndex = 0; setTimeout(nextText, 3000); // Bỏ comment nếu muốn lặp lại
 				}
 			}
 
