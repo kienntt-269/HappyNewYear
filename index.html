@@ -490,21 +490,24 @@
 
 			class Particle {
 				constructor(x, y) {
-					this.x = Math.random() * canvas.width;
-					this.y = Math.random() * canvas.height;
+					// Khởi tạo hạt từ vị trí ngẫu nhiên gần vị trí đích để giảm độ hỗn loạn ban đầu
+					this.x = x + (Math.random() - 0.5) * 50; 
+					this.y = y + (Math.random() - 0.5) * 50;
 					this.destX = x;
 					this.destY = y;
-					// Kích thước hạt ngẫu nhiên để trông tự nhiên hơn
-					this.size = (Math.random() * 1.5) + 1.5; 
-					this.color = "#ffffff";
-					this.vx = (Math.random() - 0.5) * 2;
-					this.vy = (Math.random() - 0.5) * 2;
-					this.friction = 0.9;
-					this.ease = 0.15; // Tốc độ tụ lại nhanh hơn chút
+					
+					// Kích thước cố định nhỏ hơn (từ 1.2 đến 1.5) để các hạt không đè lên nhau
+					this.size = Math.random() * 0.3 + 1.2; 
+					
+					// Sử dụng màu trắng hơi đục (rgba) để mắt dễ chịu hơn khi nhìn lâu
+					this.color = "rgba(255, 255, 255, 0.9)";
+					
+					this.ease = 0.08; // Giảm tốc độ tụ lại để tạo cảm giác trôi dạt nhẹ nhàng, không bị giật
+					this.friction = 0.95;
 				}
 
 				update() {
-					// Hiệu ứng di chuyển mượt mà về vị trí gốc
+					// Công thức tính toán vị trí mượt mà
 					this.x += (this.destX - this.x) * this.ease;
 					this.y += (this.destY - this.y) * this.ease;
 				}
@@ -512,6 +515,7 @@
 				draw() {
 					ctx.fillStyle = this.color;
 					ctx.beginPath();
+					// Vẽ hình tròn sắc nét
 					ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
 					ctx.fill();
 				}
@@ -541,39 +545,40 @@
 				particles = [];
 				ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-				// 1. CẤU HÌNH FONT ĐỂ DỄ NHÌN HƠN
 				const isMobile = canvas.width < 768;
-				// Tăng cỡ chữ mobile lên 60 (cũ 45) để rõ hơn
-				const fontSize = isMobile ? 60 : 100; 
-				// Dùng font Arial Black hoặc Verdana (dày) thay vì Arial thường
-				ctx.font = `900 ${fontSize}px "Arial Black", "Verdana", sans-serif`; 
-				ctx.fillStyle = "#fff";
+				const fontSize = isMobile ? 80 : 120; // Giảm nhẹ cỡ chữ để tạo khoảng trống
+				
+				// Sử dụng font dày nhưng nét chữ thanh thoát
+				ctx.font = `900 ${fontSize}px "Segoe UI", "Arial Black", sans-serif`; 
+				ctx.fillStyle = "#ffffff";
 				ctx.textAlign = "center";
 				ctx.textBaseline = "middle";
 
-				const maxTextWidth = canvas.width * 0.8;
+				const maxTextWidth = canvas.width * 0.85;
 				const lines = wrapText(text, maxTextWidth);
-				const lineHeight = fontSize * 1.2;
+				const lineHeight = fontSize * 1.3;
 				const startY = (canvas.height - lines.length * lineHeight) / 2 + lineHeight / 2;
 
 				lines.forEach((line, i) => {
 					ctx.fillText(line, canvas.width / 2, startY + i * lineHeight);
 				});
 
-				// Lấy dữ liệu pixel
 				const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+				const data = imageData.data;
 				ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-				// 2. GIẢM BƯỚC NHẢY (GAP) ĐỂ TĂNG MẬT ĐỘ HẠT
-				// Mobile: bước nhảy 4 (để đỡ lag), PC: bước nhảy 3 (cho đẹp)
-				// Code cũ là 6 -> quá thưa
-				const gap = isMobile ? 6 : 4; 
+				// KHOẢNG CÁCH HẠT (GAP): 
+				// Đây là chìa khóa để không bị đè. Gap phải lớn hơn Size của hạt.
+				// Desktop: gap 4, Mobile: gap 5.
+				const gap = isMobile ? 5 : 4; 
 
 				for (let y = 0; y < canvas.height; y += gap) {
 					for (let x = 0; x < canvas.width; x += gap) {
-						// Kiểm tra kênh Alpha (độ trong suốt)
 						const index = (y * canvas.width + x) * 4;
-						if (imageData.data[index + 3] > 128) {
+						const alpha = data[index + 3];
+						
+						if (alpha > 128) {
+							// Đẩy hạt vào mảng với tọa độ x, y sạch sẽ theo lưới
 							particles.push(new Particle(x, y));
 						}
 					}
@@ -581,7 +586,10 @@
 			}
 
 			function animate() {
+				// Thay vì clear hoàn toàn, có thể dùng một lớp phủ mờ nhẹ nếu muốn hiệu ứng vệt (trail)
+				// Nhưng để chống đau mắt, ta clear sạch:
 				ctx.clearRect(0, 0, canvas.width, canvas.height);
+				
 				for (let i = 0; i < particles.length; i++) {
 					particles[i].update();
 					particles[i].draw();
